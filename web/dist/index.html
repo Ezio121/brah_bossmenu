@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organization Suite</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app" class="app hidden">
+    <div class="ambient ambient-a"></div>
+    <div class="ambient ambient-b"></div>
+    <div class="ambient ambient-c"></div>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1 id="job-label">Boss Menu</h1>
+          <p id="job-sub">Organization Suite</p>
+        </div>
+        <nav id="nav-list" class="nav-list"></nav>
+        <button id="close-btn" class="btn ghost nav-close">Close</button>
+      </aside>
+
+      <main class="content">
+        <header class="content-top">
+          <div class="top-stats">
+            <article id="balance-card" class="stat">
+              <span>Balance</span>
+              <strong id="balance">$0</strong>
+            </article>
+            <article class="stat">
+              <span>Members</span>
+              <strong id="employee-count">0</strong>
+            </article>
+            <article class="stat">
+              <span>Nearby</span>
+              <strong id="nearby-count">0</strong>
+            </article>
+          </div>
+          <div class="top-actions">
+            <button id="stash-btn" class="btn ghost hidden">Boss Stash</button>
+            <button id="refresh-btn" class="btn">Refresh</button>
+          </div>
+        </header>
+
+        <section id="view-overview" class="view"></section>
+        <section id="view-members" class="view hidden"></section>
+        <section id="view-ranks" class="view hidden"></section>
+        <section id="view-permissions" class="view hidden"></section>
+        <section id="view-profiles" class="view hidden"></section>
+        <section id="view-inventory" class="view hidden"></section>
+        <section id="view-uniforms" class="view hidden"></section>
+        <section id="view-applications" class="view hidden"></section>
+        <section id="view-announcements" class="view hidden"></section>
+        <section id="view-cameras" class="view hidden"></section>
+        <section id="view-markers" class="view hidden"></section>
+        <section id="view-garage" class="view hidden"></section>
+        <section id="view-taxes" class="view hidden"></section>
+        <section id="view-analytics" class="view hidden"></section>
+        <section id="view-logs" class="view hidden"></section>
+        <section id="view-webhooks" class="view hidden"></section>
+        <section id="view-territories" class="view hidden"></section>
+        <section id="view-rackets" class="view hidden"></section>
+        <section id="view-contracts" class="view hidden"></section>
+        <section id="view-admin" class="view hidden"></section>
+
+        <div id="toast" class="toast hidden"></div>
+      </main>
+    </div>
+  </div>
+  <div id="camera-overlay" class="camera-overlay hidden">
+    <div class="camera-frame"></div>
+    <div class="camera-top">
+      <span id="camera-overlay-label">CCTV FEED</span>
+      <span id="camera-overlay-time">00:00:00</span>
+    </div>
+    <div class="camera-bottom">
+      <span>REC</span>
+      <span id="camera-overlay-provider">SYSTEM</span>
+    </div>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>
