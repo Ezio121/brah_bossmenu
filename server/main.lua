@@ -9,6 +9,7 @@ BrahBossmenuRuntimeReady = false
 BrahBossmenuResourceStopping = false
 
 local ResourceStopping = false
+local RuntimeInitializationStarted = false
 
 local function waitForRuntimeReady()
     while not BrahBossmenuRuntimeReady and not ResourceStopping do
@@ -1447,8 +1448,35 @@ local function ensureGangDefinitions()
     end
 end
 
-MySQL.ready(function()
+local function waitForOxmysqlConnection()
+    while not ResourceStopping do
+        if GetResourceState('oxmysql') == 'started' then
+            local ok = pcall(function()
+                return MySQL.scalar.await('SELECT 1')
+            end)
+            if ok then
+                return true
+            end
+        end
+
+        Wait(250)
+    end
+
+    return false
+end
+
+local function initializeRuntimeDatabase()
+    if RuntimeInitializationStarted then
+        return
+    end
+
+    RuntimeInitializationStarted = true
+
     CreateThread(function()
+        if not waitForOxmysqlConnection() then
+            return
+        end
+
         local ok, err = pcall(function()
             ensureTables()
             ensureGangDefinitions()
@@ -1467,7 +1495,9 @@ MySQL.ready(function()
             print(('[%s] database initialization failed: %s'):format(resource, tostring(err)))
         end
     end)
-end)
+end
+
+initializeRuntimeDatabase()
 
 local BankingBackend
 
