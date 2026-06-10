@@ -1,4 +1,10 @@
 local resource = GetCurrentResourceName()
+
+if resource:lower():sub(-5) == '-init' then
+    print(('[%s] init bootstrap detected; runtime server initialization skipped'):format(resource))
+    return
+end
+
 local frameworkName = Framework.GetName()
 
 local QBCore
@@ -1426,7 +1432,7 @@ MySQL.ready(function()
     ensureTables()
     ensureGangDefinitions()
     if Config.EnableGangMenu == true and (not useInbuiltGangFrames()) and (not supportsCustomGangBackend()) then
-        print(('[qb-management] custom gang backend is only supported on QB/ESX. framework=%s, using framework gang backend instead.'):format(frameworkName))
+        print(('[%s] custom gang backend is only supported on QB/ESX. framework=%s, using framework gang backend instead.'):format(resource, frameworkName))
     end
 end)
 
@@ -1575,7 +1581,7 @@ end
 CreateThread(function()
     Wait(1000)
     if Config.Debug == true then
-        print(('[qb-management] banking integration=%s'):format(tostring(resolveBankingBackend())))
+        print(('[%s] banking integration=%s'):format(resource, tostring(resolveBankingBackend())))
     end
 end)
 
@@ -1759,7 +1765,7 @@ CreateThread(function()
         if isModuleEnabled('GangRackets') and GangsModule and GangsModule.TickRackets then
             local touched = GangsModule.TickRackets()
             if touched > 0 and Config.Debug == true then
-                print(('[qb-management] rackets tick updated=%s'):format(touched))
+                print(('[%s] rackets tick updated=%s'):format(resource, touched))
             end
         end
         if isModuleEnabled('GangGraffiti') then
@@ -6069,7 +6075,7 @@ AddEventHandler('esx:playerLoaded', function(playerId)
 end)
 
 RegisterCommand('bossframework', function(src)
-    local message = ('[qb-management] framework=%s, inbuiltGang=%s'):format(frameworkName, tostring(useInbuiltGangFrames()))
+    local message = ('[%s] framework=%s, inbuiltGang=%s'):format(resource, frameworkName, tostring(useInbuiltGangFrames()))
     if src == 0 then
         print(message)
     else
@@ -6098,7 +6104,7 @@ RegisterCommand('bm_debug_org', function(src, args)
     local employees = getEmployeesForRole(menuType == 'gang' and 'gang' or 'boss', orgName)
     local message = ('org=%s:%s members=%s'):format(menuType, orgName, tostring(#employees))
     if src == 0 then
-        print('[qb-management] ' .. message)
+        print(('[%s] %s'):format(resource, message))
     else
         notify(src, message, 'inform')
     end

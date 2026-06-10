@@ -1,4 +1,10 @@
+local auditResource = GetCurrentResourceName()
+
 AuditModule = AuditModule or {}
+
+if auditResource:lower():sub(-5) == '-init' then
+    return
+end
 
 AuditModule.queue = AuditModule.queue or {}
 AuditModule.processing = AuditModule.processing or false

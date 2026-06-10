@@ -9,6 +9,8 @@ provide 'qb-management'
 provide 'qb-gangmenu'
 provide 'esx_society'
 
+dependency 'oxmysql'
+
 ui_page 'web/dist/index.html'
 
 shared_scripts {

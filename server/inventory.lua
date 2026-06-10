@@ -38,7 +38,7 @@ end
 local function invWarnOnce(key, message)
     if InventoryModule._warned[key] then return end
     InventoryModule._warned[key] = true
-    print(('[qb-management] inventory integration warning: %s'):format(message))
+    print(('[%s] inventory integration warning: %s'):format(GetCurrentResourceName(), message))
 end
 
 local function invCall(resource, fn, ...)
