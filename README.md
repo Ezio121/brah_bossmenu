@@ -345,7 +345,7 @@ Need help, want to report a bug, or want to suggest a feature?
 
 Join the Discord:
 
-[![Join Discord](https://img.shields.io/badge/Discord-Join%20the%20Community-5865F2?style=for-the-badge\&logo=discord\&logoColor=white)](https://discord.gg/fudBnzsyfp)
+[![Join Discord](https://img.shields.io/badge/Discord-Join%20the%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/fudBnzsyfp)
 
 Or open an issue on GitHub:
 
@@ -359,7 +359,7 @@ This resource is released for free.
 
 If it helps your server, saves you development time, or replaces a paid resource for you, donations are appreciated but never required.
 
-[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge\&logo=paypal\&logoColor=white)](https://paypal.me/thatonefalcon)
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/thatonefalcon)
 
 ---
 
