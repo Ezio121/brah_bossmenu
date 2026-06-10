@@ -1,8 +1,10 @@
 # Hooks
 
 Use:
-- `exports['qb-management']:RegisterHook(name, eventName)`
-- `exports['qb-management']:UnregisterHook(name, hookId)`
+- `exports['brah_bossmenu-main']:RegisterHook(name, eventName)`
+- `exports['brah_bossmenu-main']:UnregisterHook(name, hookId)`
+
+The official GitHub download runs as `brah_bossmenu-main` unless you rename the folder. Legacy event names such as `qb-management:server:hook` are still emitted for replacement compatibility.
 
 Core emitted names include:
 - `boss_menu_opened`

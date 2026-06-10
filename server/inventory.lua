@@ -120,27 +120,28 @@ local function moveViaQb(orgType, orgName, actorSource, item, amount, metadata, 
     local src = invNum(actorSource, 1)
     if not src then return false, 'Invalid source' end
     local stash = stashId(orgType, orgName)
+    local reason = GetCurrentResourceName()
 
     if direction == 'deposit' then
-        local okRemove = invCall('qb-inventory', 'RemoveItem', src, item, amount, false, nil, 'qb-management')
+        local okRemove = invCall('qb-inventory', 'RemoveItem', src, item, amount, false, nil, reason)
         if okRemove ~= true then
             return false, 'Insufficient item amount'
         end
-        local okAdd = invCall('qb-inventory', 'AddToStash', stash, item, amount, false, metadata or {}, 'qb-management')
+        local okAdd = invCall('qb-inventory', 'AddToStash', stash, item, amount, false, metadata or {}, reason)
         if okAdd ~= true then
-            invCall('qb-inventory', 'AddItem', src, item, amount, false, metadata or {}, 'qb-management')
+            invCall('qb-inventory', 'AddItem', src, item, amount, false, metadata or {}, reason)
             return false, 'Stash add failed'
         end
         return true
     end
 
-    local okTake = invCall('qb-inventory', 'RemoveFromStash', stash, item, amount, false, 'qb-management')
+    local okTake = invCall('qb-inventory', 'RemoveFromStash', stash, item, amount, false, reason)
     if okTake ~= true then
         return false, 'Insufficient item amount'
     end
-    local okGive = invCall('qb-inventory', 'AddItem', src, item, amount, false, metadata or {}, 'qb-management')
+    local okGive = invCall('qb-inventory', 'AddItem', src, item, amount, false, metadata or {}, reason)
     if okGive ~= true then
-        invCall('qb-inventory', 'AddToStash', stash, item, amount, false, metadata or {}, 'qb-management')
+        invCall('qb-inventory', 'AddToStash', stash, item, amount, false, metadata or {}, reason)
         return false, 'Cannot carry item'
     end
     return true
@@ -150,27 +151,28 @@ local function moveViaQbFamily(resourceName, orgType, orgName, actorSource, item
     local src = invNum(actorSource, 1)
     if not src then return false, 'Invalid source' end
     local stash = stashId(orgType, orgName)
+    local reason = GetCurrentResourceName()
 
     if direction == 'deposit' then
-        local okRemove = invCall(resourceName, 'RemoveItem', src, item, amount, false, nil, 'qb-management')
+        local okRemove = invCall(resourceName, 'RemoveItem', src, item, amount, false, nil, reason)
         if okRemove ~= true then
             return false, 'Insufficient item amount'
         end
-        local okAdd = invCall(resourceName, 'AddToStash', stash, item, amount, false, metadata or {}, 'qb-management')
+        local okAdd = invCall(resourceName, 'AddToStash', stash, item, amount, false, metadata or {}, reason)
         if okAdd ~= true then
-            invCall(resourceName, 'AddItem', src, item, amount, false, metadata or {}, 'qb-management')
+            invCall(resourceName, 'AddItem', src, item, amount, false, metadata or {}, reason)
             return false, 'Stash add failed'
         end
         return true
     end
 
-    local okTake = invCall(resourceName, 'RemoveFromStash', stash, item, amount, false, 'qb-management')
+    local okTake = invCall(resourceName, 'RemoveFromStash', stash, item, amount, false, reason)
     if okTake ~= true then
         return false, 'Insufficient item amount'
     end
-    local okGive = invCall(resourceName, 'AddItem', src, item, amount, false, metadata or {}, 'qb-management')
+    local okGive = invCall(resourceName, 'AddItem', src, item, amount, false, metadata or {}, reason)
     if okGive ~= true then
-        invCall(resourceName, 'AddToStash', stash, item, amount, false, metadata or {}, 'qb-management')
+        invCall(resourceName, 'AddToStash', stash, item, amount, false, metadata or {}, reason)
         return false, 'Cannot carry item'
     end
     return true

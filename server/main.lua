@@ -5,6 +5,25 @@ if resource:lower():sub(-5) == '-init' then
     return
 end
 
+BrahBossmenuRuntimeReady = false
+BrahBossmenuResourceStopping = false
+
+local ResourceStopping = false
+
+local function waitForRuntimeReady()
+    while not BrahBossmenuRuntimeReady and not ResourceStopping do
+        Wait(250)
+    end
+    return BrahBossmenuRuntimeReady == true and not ResourceStopping
+end
+
+AddEventHandler('onResourceStop', function(stoppedResource)
+    if stoppedResource ~= resource then return end
+    ResourceStopping = true
+    BrahBossmenuResourceStopping = true
+    BrahBossmenuRuntimeReady = false
+end)
+
 local frameworkName = Framework.GetName()
 
 local QBCore
@@ -1005,13 +1024,13 @@ local function maxMoneyAmount()
 end
 
 local function ensureTables()
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_accounts (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_accounts (
         job VARCHAR(64) NOT NULL PRIMARY KEY,
         balance BIGINT NOT NULL DEFAULT 0,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_ledger (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_ledger (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         job VARCHAR(64) NOT NULL,
         action VARCHAR(32) NOT NULL,
@@ -1023,7 +1042,7 @@ local function ensureTables()
         INDEX idx_job_created (job, created_at)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_audit (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_audit (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         job VARCHAR(64) NOT NULL,
         action VARCHAR(40) NOT NULL,
@@ -1050,14 +1069,14 @@ local function ensureTables()
     ensureAuditColumn('target_name', "VARCHAR(120) NULL AFTER target_identifier")
     ensureAuditColumn('metadata_json', "JSON NULL AFTER payload")
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_gangs (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_gangs (
         name VARCHAR(64) NOT NULL PRIMARY KEY,
         label VARCHAR(80) NOT NULL,
         max_grade INT NOT NULL DEFAULT 4,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_gang_members (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_gang_members (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         gang_name VARCHAR(64) NOT NULL,
         identifier VARCHAR(80) NOT NULL,
@@ -1070,7 +1089,7 @@ local function ensureTables()
     )]])
 
     -- Optional module foundations (idempotent migrations).
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_rank_permissions (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_rank_permissions (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1082,7 +1101,7 @@ local function ensureTables()
         UNIQUE KEY uq_rank_permission (org_type, org_name, grade, permission_key)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_custom_ranks (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_custom_ranks (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1100,7 +1119,7 @@ local function ensureTables()
         UNIQUE KEY uq_custom_rank (org_type, org_name, grade)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_employee_profiles (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_employee_profiles (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1114,9 +1133,9 @@ local function ensureTables()
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY uq_profile (org_type, org_name, identifier)
     )]])
-    MySQL.query('ALTER TABLE bossmenu_employee_profiles MODIFY COLUMN photo_url LONGTEXT NULL')
+    MySQL.query.await('ALTER TABLE bossmenu_employee_profiles MODIFY COLUMN photo_url LONGTEXT NULL')
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_employee_activity (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_employee_activity (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1127,7 +1146,7 @@ local function ensureTables()
         INDEX idx_emp_activity (org_type, org_name, identifier, created_at)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_salary_overrides (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_salary_overrides (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1140,7 +1159,7 @@ local function ensureTables()
         INDEX idx_salary_scope (org_type, org_name, identifier, grade)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_payroll_runs (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_payroll_runs (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1154,7 +1173,7 @@ local function ensureTables()
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_org_inventory (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_org_inventory (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1165,7 +1184,7 @@ local function ensureTables()
         UNIQUE KEY uq_org_item (org_type, org_name, item_name)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_org_inventory_logs (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_org_inventory_logs (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1179,7 +1198,7 @@ local function ensureTables()
         INDEX idx_org_inv_log (org_type, org_name, created_at)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_org_uniforms (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_org_uniforms (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1192,7 +1211,7 @@ local function ensureTables()
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_org_markers (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_org_markers (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1204,7 +1223,7 @@ local function ensureTables()
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_org_garages (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_org_garages (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1215,7 +1234,7 @@ local function ensureTables()
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_job_applications (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_job_applications (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1230,7 +1249,7 @@ local function ensureTables()
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_announcements (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_announcements (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1243,7 +1262,7 @@ local function ensureTables()
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_admin_actions (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_admin_actions (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         admin_identifier VARCHAR(80) NOT NULL,
         action VARCHAR(64) NOT NULL,
@@ -1254,7 +1273,7 @@ local function ensureTables()
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_webhook_settings (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_webhook_settings (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         scope_type VARCHAR(16) NOT NULL,
         org_type VARCHAR(16) NOT NULL DEFAULT '',
@@ -1268,7 +1287,7 @@ local function ensureTables()
         INDEX idx_webhook_scope (scope_type, org_type, org_name)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_org_state (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_org_state (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1279,7 +1298,7 @@ local function ensureTables()
         UNIQUE KEY uq_org_state (org_type, org_name)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_tax_accounts (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_tax_accounts (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NOT NULL,
         org_name VARCHAR(64) NOT NULL,
@@ -1291,7 +1310,7 @@ local function ensureTables()
         UNIQUE KEY uq_tax_account (org_type, org_name)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_bills_invoices (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_bills_invoices (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         org_type VARCHAR(16) NULL,
         org_name VARCHAR(64) NULL,
@@ -1307,7 +1326,7 @@ local function ensureTables()
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_scheduled_tasks (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_scheduled_tasks (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         module_name VARCHAR(40) NOT NULL,
         task_type VARCHAR(80) NOT NULL,
@@ -1337,7 +1356,7 @@ local function ensureTables()
     ensureScheduledColumn('next_run_at', "DATETIME NULL")
     ensureScheduledColumn('updated_at', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_gang_notoriety (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_gang_notoriety (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         gang_name VARCHAR(64) NOT NULL,
         points INT NOT NULL DEFAULT 0,
@@ -1345,7 +1364,7 @@ local function ensureTables()
         UNIQUE KEY uq_gang_notoriety (gang_name)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_gang_markers (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_gang_markers (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         gang_name VARCHAR(64) NOT NULL,
         marker_type VARCHAR(32) NOT NULL,
@@ -1355,7 +1374,7 @@ local function ensureTables()
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_gang_territories (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_gang_territories (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         territory_name VARCHAR(80) NOT NULL,
         territory_type VARCHAR(32) NOT NULL DEFAULT 'basic',
@@ -1366,7 +1385,7 @@ local function ensureTables()
         UNIQUE KEY uq_territory_name (territory_name)
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_gang_rackets (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_gang_rackets (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         gang_name VARCHAR(64) NOT NULL,
         territory_name VARCHAR(80) NULL,
@@ -1376,7 +1395,7 @@ local function ensureTables()
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )]])
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_gang_graffiti (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_gang_graffiti (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         gang_name VARCHAR(64) NOT NULL,
         style_name VARCHAR(64) NULL,
@@ -1387,9 +1406,9 @@ local function ensureTables()
         placed_by VARCHAR(80) NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )]])
-    MySQL.query('ALTER TABLE bossmenu_gang_graffiti ADD COLUMN IF NOT EXISTS metadata JSON NULL')
+    MySQL.query.await('ALTER TABLE bossmenu_gang_graffiti ADD COLUMN IF NOT EXISTS metadata JSON NULL')
 
-    MySQL.query([[CREATE TABLE IF NOT EXISTS bossmenu_gang_contracts (
+    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_gang_contracts (
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         gang_name VARCHAR(64) NOT NULL,
         contract_type VARCHAR(40) NOT NULL,
@@ -1429,11 +1448,25 @@ local function ensureGangDefinitions()
 end
 
 MySQL.ready(function()
-    ensureTables()
-    ensureGangDefinitions()
-    if Config.EnableGangMenu == true and (not useInbuiltGangFrames()) and (not supportsCustomGangBackend()) then
-        print(('[%s] custom gang backend is only supported on QB/ESX. framework=%s, using framework gang backend instead.'):format(resource, frameworkName))
-    end
+    CreateThread(function()
+        local ok, err = pcall(function()
+            ensureTables()
+            ensureGangDefinitions()
+            if Config.EnableGangMenu == true and (not useInbuiltGangFrames()) and (not supportsCustomGangBackend()) then
+                print(('[%s] custom gang backend is only supported on QB/ESX. framework=%s, using framework gang backend instead.'):format(resource, frameworkName))
+            end
+        end)
+
+        if ok then
+            BrahBossmenuRuntimeReady = true
+            if Config.Debug == true then
+                print(('[%s] database initialization complete'):format(resource))
+            end
+        else
+            BrahBossmenuRuntimeReady = false
+            print(('[%s] database initialization failed: %s'):format(resource, tostring(err)))
+        end
+    end)
 end)
 
 local BankingBackend
@@ -1539,21 +1572,23 @@ local function mirrorSocietyMoney(roleName, amount, mode, reason)
     if money <= 0 then return false end
 
     if backend == 'qb-banking' then
+        local label = reason or resource
         if mode == 'add' then
-            return tryExportCall('qb-banking', 'AddMoney', account, money, reason or 'qb-management') == true
-                or tryExportCall('qb-banking', 'AddAccountMoney', account, money, reason or 'qb-management') == true
+            return tryExportCall('qb-banking', 'AddMoney', account, money, label) == true
+                or tryExportCall('qb-banking', 'AddAccountMoney', account, money, label) == true
         end
-        return tryExportCall('qb-banking', 'RemoveMoney', account, money, reason or 'qb-management') == true
-            or tryExportCall('qb-banking', 'RemoveAccountMoney', account, money, reason or 'qb-management') == true
+        return tryExportCall('qb-banking', 'RemoveMoney', account, money, label) == true
+            or tryExportCall('qb-banking', 'RemoveAccountMoney', account, money, label) == true
     end
 
     if backend == 'renewed-banking' then
+        local label = reason or resource
         if mode == 'add' then
-            return tryExportCall('Renewed-Banking', 'addAccountMoney', account, money, reason or 'qb-management') == true
-                or tryExportCall('Renewed-Banking', 'AddAccountMoney', account, money, reason or 'qb-management') == true
+            return tryExportCall('Renewed-Banking', 'addAccountMoney', account, money, label) == true
+                or tryExportCall('Renewed-Banking', 'AddAccountMoney', account, money, label) == true
         end
-        return tryExportCall('Renewed-Banking', 'removeAccountMoney', account, money, reason or 'qb-management') == true
-            or tryExportCall('Renewed-Banking', 'RemoveAccountMoney', account, money, reason or 'qb-management') == true
+        return tryExportCall('Renewed-Banking', 'removeAccountMoney', account, money, label) == true
+            or tryExportCall('Renewed-Banking', 'RemoveAccountMoney', account, money, label) == true
     end
 
     if backend == 'okokbanking' then
@@ -1682,6 +1717,7 @@ local function runTaxCycle()
 end
 
 CreateThread(function()
+    if not waitForRuntimeReady() then return end
     while true do
         local pollMs = math.max(5, tonumber(Config.ScheduledTasks and Config.ScheduledTasks.pollIntervalSeconds or 15) or 15) * 1000
         if Config.Modules and Config.Modules.ScheduledTasks == true and Config.ScheduledTasks and Config.ScheduledTasks.enabled == true then
@@ -1733,6 +1769,7 @@ CreateThread(function()
 end)
 
 CreateThread(function()
+    if not waitForRuntimeReady() then return end
     while true do
         local intervalMinutes = math.max(5, tonumber(Config.Payroll and Config.Payroll.autoIntervalMinutes or 60) or 60)
         Wait(intervalMinutes * 60000)
@@ -1751,6 +1788,7 @@ CreateThread(function()
 end)
 
 CreateThread(function()
+    if not waitForRuntimeReady() then return end
     while true do
         local intervalMinutes = math.max(5, tonumber(Config.TaxSettings and Config.TaxSettings.intervalMinutes or 30) or 30)
         Wait(intervalMinutes * 60000)
@@ -1759,6 +1797,7 @@ CreateThread(function()
 end)
 
 CreateThread(function()
+    if not waitForRuntimeReady() then return end
     while true do
         local intervalMinutes = math.max(5, tonumber(Config.GangSystems and Config.GangSystems.racketIncomeTickMinutes or 20) or 20)
         Wait(intervalMinutes * 60000)
@@ -5403,6 +5442,11 @@ RegisterNetEvent('qb-management:server:rpc', function(requestId, action, payload
         return
     end
 
+    if BrahBossmenuRuntimeReady ~= true then
+        respond(false, nil, 'Resource initializing')
+        return
+    end
+
     local seen = SeenRequests[src]
     local now = nowMs()
     if not seen then
@@ -5831,7 +5875,7 @@ local function removeNotoriety(gangName, amount, reason, actor)
 end
 
 local function publicApiEnabled()
-    return not Config.Modules or Config.Modules.PublicAPI ~= false
+    return BrahBossmenuRuntimeReady == true and (not Config.Modules or Config.Modules.PublicAPI ~= false)
 end
 
 exports('OpenBossMenu', function(src, jobName)
@@ -6161,3 +6205,4 @@ end)
 exports('IsUsingInbuiltGangFrames', function()
     return useInbuiltGangFrames()
 end)
+

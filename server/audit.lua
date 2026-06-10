@@ -351,7 +351,7 @@ local function webhookBody(batch)
         embeds[#embeds + 1] = webhookEmbed(batch[i])
     end
     return {
-        username = ('qb-management %s'):format(first.category or 'logs'),
+        username = ('%s %s'):format(GetCurrentResourceName(), first.category or 'logs'),
         content = #batch > 1 and ('Batched %s log events'):format(#batch) or nil,
         embeds = embeds
     }
@@ -383,6 +383,11 @@ local function takeWebhookBatch(firstIndex, cfg)
 end
 
 CreateThread(function()
+    while BrahBossmenuRuntimeReady ~= true and BrahBossmenuResourceStopping ~= true do
+        Wait(250)
+    end
+    if BrahBossmenuResourceStopping == true then return end
+
     while true do
         if #AuditModule.queue == 0 then
             Wait(500)

@@ -265,7 +265,7 @@ git clone https://github.com/Ezio121/brah_bossmenu.git
 Example:
 
 ```txt
-resources/[standalone]/brah_bossmenu
+resources/[standalone]/brah_bossmenu-main
 ```
 
 3. Ensure required dependencies are started before this resource.
@@ -275,7 +275,7 @@ Example:
 ```cfg
 ensure oxmysql
 ensure qb-core
-ensure brah_bossmenu
+ensure brah_bossmenu-main
 ```
 
 For ESX, QBox, or OxCore, ensure your framework resource instead of `qb-core`.
@@ -295,7 +295,7 @@ For ESX, QBox, or OxCore, ensure your framework resource instead of `qb-core`.
 ```cfg
 ensure oxmysql
 ensure qb-core
-ensure brah_bossmenu
+ensure brah_bossmenu-main
 ```
 
 ### ESX
@@ -303,7 +303,7 @@ ensure brah_bossmenu
 ```cfg
 ensure oxmysql
 ensure es_extended
-ensure brah_bossmenu
+ensure brah_bossmenu-main
 ```
 
 ### QBox
@@ -311,7 +311,7 @@ ensure brah_bossmenu
 ```cfg
 ensure oxmysql
 ensure qbx_core
-ensure brah_bossmenu
+ensure brah_bossmenu-main
 ```
 
 ### OxCore
@@ -319,7 +319,7 @@ ensure brah_bossmenu
 ```cfg
 ensure oxmysql
 ensure ox_core
-ensure brah_bossmenu
+ensure brah_bossmenu-main
 ```
 
 ---
