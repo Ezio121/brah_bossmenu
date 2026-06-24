@@ -1421,19 +1421,6 @@ local function ensureTables()
         completed_at DATETIME NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )]])
-    MySQL.query.await([[CREATE TABLE IF NOT EXISTS bossmenu_hidden_workshop_profiles (
-        gang_name VARCHAR(64) NOT NULL PRIMARY KEY,
-        reputation INT NOT NULL DEFAULT 0,
-        level INT NOT NULL DEFAULT 1,
-        jobs_completed INT NOT NULL DEFAULT 0,
-        jobs_failed INT NOT NULL DEFAULT 0,
-        early_cashouts INT NOT NULL DEFAULT 0,
-        cars_stripped INT NOT NULL DEFAULT 0,
-        total_cash_earned INT NOT NULL DEFAULT 0,
-        total_parts_earned INT NOT NULL DEFAULT 0,
-        heat INT NOT NULL DEFAULT 0,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    )]])
 end
 
 local function ensureGangDefinitions()
@@ -4395,7 +4382,6 @@ local function actionAdmin(context, payload, op)
         MySQL.update.await('DELETE FROM bossmenu_gang_rackets WHERE gang_name = ?', { orgName })
         MySQL.update.await('DELETE FROM bossmenu_gang_graffiti WHERE gang_name = ?', { orgName })
         MySQL.update.await('DELETE FROM bossmenu_gang_contracts WHERE gang_name = ?', { orgName })
-        MySQL.update.await('DELETE FROM bossmenu_hidden_workshop_profiles WHERE gang_name = ?', { orgName })
         invalidateOrganizationCaches('gang', orgName)
         adminLog(op, orgType, orgName, nil, { confirm = true })
         emitHook('admin_internal_gang_deleted', { orgName = orgName, actor = context.player.identifier })
@@ -4574,29 +4560,12 @@ local function actionAnalytics(context)
         local racketIncome = tonumber(MySQL.scalar.await('SELECT COALESCE(SUM(stored_income),0) FROM bossmenu_gang_rackets WHERE gang_name = ?', { context.role.name }) or 0) or 0
         local graffitiCount = tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM bossmenu_gang_graffiti WHERE gang_name = ?', { context.role.name }) or 0) or 0
         local contractCompletions = tonumber(MySQL.scalar.await("SELECT COUNT(*) FROM bossmenu_gang_contracts WHERE gang_name = ? AND status = 'completed'", { context.role.name }) or 0) or 0
-        local workshop = HiddenWorkshopModule and HiddenWorkshopModule.IsEnabled and HiddenWorkshopModule.IsEnabled()
-            and MySQL.single.await([[SELECT reputation, level, jobs_completed, jobs_failed, early_cashouts, cars_stripped, total_cash_earned, total_parts_earned, heat
-                FROM bossmenu_hidden_workshop_profiles
-                WHERE gang_name = ?
-                LIMIT 1]], { context.role.name })
-            or nil
         gangExtra = {
             notoriety = notoriety,
             territoryCount = territoryCount,
             racketIncome = racketIncome,
             graffitiCount = graffitiCount,
-            contractCompletions = contractCompletions,
-            hiddenWorkshop = workshop and {
-                reputation = tonumber(workshop.reputation) or 0,
-                level = tonumber(workshop.level) or 1,
-                jobsCompleted = tonumber(workshop.jobs_completed) or 0,
-                jobsFailed = tonumber(workshop.jobs_failed) or 0,
-                earlyCashouts = tonumber(workshop.early_cashouts) or 0,
-                carsStripped = tonumber(workshop.cars_stripped) or 0,
-                totalCashEarned = tonumber(workshop.total_cash_earned) or 0,
-                totalPartsEarned = tonumber(workshop.total_parts_earned) or 0,
-                heat = tonumber(workshop.heat) or 0
-            } or nil
+            contractCompletions = contractCompletions
         }
     end
 
@@ -4808,69 +4777,6 @@ local function actionContract(context, payload, op)
         return true, result
     end
     return false, 'Invalid contract action'
-end
-
-local function actionWorkshop(context, payload, op)
-    if context.menuType ~= 'gang' then
-        return false, 'Gang only action'
-    end
-    if not HiddenWorkshopModule or not HiddenWorkshopModule.IsEnabled or not HiddenWorkshopModule.IsEnabled() then
-        return false, 'Hidden workshop disabled'
-    end
-    if not hasContextPermission(context, 'manage_hidden_workshop') then
-        return false, 'No permission'
-    end
-
-    if op == 'overview' then
-        return true, HiddenWorkshopModule.GetState(context.role.name)
-    end
-    if op == 'create' then
-        return HiddenWorkshopModule.Create(context.role.name, payload or {}, context.player.identifier)
-    end
-    if op == 'accept' then
-        return HiddenWorkshopModule.Accept(context.role.name, payload and payload.id, context.player.identifier)
-    end
-    if op == 'progress' then
-        return HiddenWorkshopModule.Progress(context.role.name, payload and payload.id, context.player.identifier, payload or {})
-    end
-    if op == 'cashout' then
-        local ok, dataOrErr = HiddenWorkshopModule.EarlyCashout(context.role.name, payload and payload.id, context.player.identifier)
-        if not ok then
-            return false, dataOrErr
-        end
-        local result = type(dataOrErr) == 'table' and dataOrErr or {}
-        local reward = type(result.reward) == 'table' and result.reward or {}
-        local accountMoney = safeNumber(reward.accountMoney, 0, maxMoneyAmount()) or 0
-        if accountMoney > 0 then
-            ensureAccount(context.role.name)
-            MySQL.update.await('UPDATE bossmenu_accounts SET balance = balance + ? WHERE job = ?', { accountMoney, context.role.name })
-            mirrorSocietyMoney(context.role.name, accountMoney, 'add', 'hidden_workshop_cashout')
-            addLedger(context.role.name, 'hidden_workshop_cashout', accountMoney, context.player.identifier, nil, 'Hidden workshop early cashout')
-        end
-        result.balance = getBalance(context.role.name)
-        return true, result
-    end
-    if op == 'complete' then
-        local ok, dataOrErr = HiddenWorkshopModule.Complete(context.role.name, payload and payload.id, context.player.identifier)
-        if not ok then
-            return false, dataOrErr
-        end
-        local result = type(dataOrErr) == 'table' and dataOrErr or {}
-        local reward = type(result.reward) == 'table' and result.reward or {}
-        local accountMoney = safeNumber(reward.accountMoney, 0, maxMoneyAmount()) or 0
-        if accountMoney > 0 then
-            ensureAccount(context.role.name)
-            MySQL.update.await('UPDATE bossmenu_accounts SET balance = balance + ? WHERE job = ?', { accountMoney, context.role.name })
-            mirrorSocietyMoney(context.role.name, accountMoney, 'add', 'hidden_workshop_payout')
-            addLedger(context.role.name, 'hidden_workshop_payout', accountMoney, context.player.identifier, nil, 'Hidden workshop payout')
-        end
-        result.balance = getBalance(context.role.name)
-        return true, result
-    end
-    if op == 'fail' then
-        return HiddenWorkshopModule.Fail(context.role.name, payload and payload.id, context.player.identifier, payload and payload.reason)
-    end
-    return false, 'Invalid workshop action'
 end
 
 local function actionRacket(context, payload, op)
@@ -5505,41 +5411,6 @@ local Handlers = {
         local context, err = getContextFromSession(src, token)
         if not context then return false, err end
         return actionContract(context, payload, 'complete')
-    end,
-    workshop_overview = function(src, payload, token)
-        local context, err = getContextFromSession(src, token)
-        if not context then return false, err end
-        return actionWorkshop(context, payload, 'overview')
-    end,
-    workshop_create = function(src, payload, token)
-        local context, err = getContextFromSession(src, token)
-        if not context then return false, err end
-        return actionWorkshop(context, payload, 'create')
-    end,
-    workshop_accept = function(src, payload, token)
-        local context, err = getContextFromSession(src, token)
-        if not context then return false, err end
-        return actionWorkshop(context, payload, 'accept')
-    end,
-    workshop_progress = function(src, payload, token)
-        local context, err = getContextFromSession(src, token)
-        if not context then return false, err end
-        return actionWorkshop(context, payload, 'progress')
-    end,
-    workshop_cashout = function(src, payload, token)
-        local context, err = getContextFromSession(src, token)
-        if not context then return false, err end
-        return actionWorkshop(context, payload, 'cashout')
-    end,
-    workshop_complete = function(src, payload, token)
-        local context, err = getContextFromSession(src, token)
-        if not context then return false, err end
-        return actionWorkshop(context, payload, 'complete')
-    end,
-    workshop_fail = function(src, payload, token)
-        local context, err = getContextFromSession(src, token)
-        if not context then return false, err end
-        return actionWorkshop(context, payload, 'fail')
     end,
     rackets_list = function(src, payload, token)
         local context, err = getContextFromSession(src, token)

@@ -7,7 +7,6 @@ Config:
 Behavior:
 - `ox_inventory`: stash-backed deposit/withdraw with fallback-safe rollback.
 - `qb-inventory` / `qs-inventory`: best-effort stash bridge with DB mirror + audit.
-- Hidden workshop part yields and dirty-cash rewards route through the same stash bridge, so mechanic-style part economies can reuse the configured item names in `Config.HiddenWorkshop.partCatalog`.
 
 Fallback:
 - Internal org inventory tables (`bossmenu_org_inventory`, `bossmenu_org_inventory_logs`) remain authoritative for analytics/logging.
