@@ -3749,6 +3749,9 @@ local function cleanupProfileImageRequests()
     local now = nowMs()
     for key, req in pairs(ProfileImageRequests) do
         if not req or now > (req.expiresAt or 0) then
+            if req and tonumber(req.targetSource) and tonumber(req.targetSource) > 0 then
+                TriggerClientEvent('qb-management:client:finishProfileCapture', req.targetSource, key)
+            end
             ProfileImageRequests[key] = nil
         end
     end
@@ -5975,6 +5978,9 @@ AddEventHandler('playerDropped', function()
     SeenRequests[src] = nil
     for key, req in pairs(ProfileImageRequests) do
         if req and (tonumber(req.targetSource) == tonumber(src) or tonumber(req.actorSource) == tonumber(src)) then
+            if tonumber(req.targetSource) and tonumber(req.targetSource) > 0 and tonumber(req.targetSource) ~= tonumber(src) then
+                TriggerClientEvent('qb-management:client:finishProfileCapture', req.targetSource, key)
+            end
             ProfileImageRequests[key] = nil
         end
     end
@@ -6364,4 +6370,3 @@ end)
 exports('IsUsingInbuiltGangFrames', function()
     return useInbuiltGangFrames()
 end)
-

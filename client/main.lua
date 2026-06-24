@@ -652,6 +652,9 @@ CreateThread(function()
 end)
 
 RegisterNUICallback('close', function(_, cb)
+    if hasActiveProfileCaptures() then
+        cancelAllProfileCaptures('Capture cancelled')
+    end
     rpc('close', {})
     sessionToken = nil
     closeUi()
@@ -868,6 +871,9 @@ registerForward('graffitiPlace', 'graffiti_place')
 registerForward('graffitiDelete', 'graffiti_delete')
 
 RegisterNUICallback('escape', function(_, cb)
+    if hasActiveProfileCaptures() then
+        cancelAllProfileCaptures('Capture cancelled')
+    end
     rpc('close', {})
     sessionToken = nil
     closeUi()
@@ -967,6 +973,60 @@ end
 local activeNativeCamera = nil
 local cctvFxActive = false
 local profileCaptureCams = {}
+local profileCaptureStates = {}
+
+local function hasActiveProfileCaptures()
+    return next(profileCaptureStates) ~= nil
+end
+
+local function finalizeProfileCapture(requestId, notifyServer, errorReason)
+    requestId = tostring(requestId or '')
+    if requestId == '' then return false end
+
+    local state = profileCaptureStates[requestId]
+    if not state and not profileCaptureCams[requestId] then
+        SendNUIMessage({
+            action = 'captureVisibility',
+            payload = { show = true }
+        })
+        return false
+    end
+
+    profileCaptureStates[requestId] = nil
+
+    local cam = profileCaptureCams[requestId]
+    if cam then
+        DestroyCam(cam, false)
+        profileCaptureCams[requestId] = nil
+    end
+
+    if not activeNativeCamera and next(profileCaptureCams) == nil then
+        RenderScriptCams(false, true, 200, true, true)
+        ClearFocus()
+    end
+
+    SendNUIMessage({
+        action = 'captureVisibility',
+        payload = { show = true }
+    })
+
+    if notifyServer and state and state.reported ~= true then
+        state.reported = true
+        TriggerServerEvent('qb-management:server:profileCaptureData', requestId, nil, nil, errorReason or 'Capture cancelled')
+    end
+
+    return true
+end
+
+local function cancelAllProfileCaptures(errorReason)
+    local pending = {}
+    for requestId in pairs(profileCaptureStates) do
+        pending[#pending + 1] = requestId
+    end
+    for i = 1, #pending do
+        finalizeProfileCapture(pending[i], true, errorReason or 'Capture cancelled')
+    end
+end
 
 local function closeNativeCamera()
     if activeNativeCamera then
@@ -1024,7 +1084,12 @@ end
 
 CreateThread(function()
     while true do
-        if activeNativeCamera then
+        if hasActiveProfileCaptures() then
+            if IsControlJustReleased(0, 177) or IsControlJustReleased(0, 200) then -- BACKSPACE / ESC
+                cancelAllProfileCaptures('Capture cancelled')
+            end
+            Wait(0)
+        elseif activeNativeCamera then
             if IsControlJustReleased(0, 177) or IsControlJustReleased(0, 200) then -- BACKSPACE / ESC
                 closeNativeCamera()
                 setCctvFx(false)
@@ -1378,10 +1443,36 @@ RegisterNetEvent('qb-management:client:prepareProfileCapture', function(data)
     SetFocusPosAndVel(head.x, head.y, head.z, 0.0, 0.0, 0.0)
     RenderScriptCams(true, true, 250, true, true)
     profileCaptureCams[requestId] = cam
+    profileCaptureStates[requestId] = {
+        reported = false
+    }
 
-    Wait(300)
+    SetTimeout(12000, function()
+        if profileCaptureStates[requestId] then
+            finalizeProfileCapture(requestId, true, 'Capture timed out')
+        end
+    end)
+
     local options = type(data.options) == 'table' and data.options or {}
-    local ok, payload, providerOrErr = captureWithProviders(data.providers, options)
+    local ok, payload, providerOrErr = false, nil, 'Capture failed'
+    local captureOk, captureErr = pcall(function()
+        Wait(300)
+        ok, payload, providerOrErr = captureWithProviders(data.providers, options)
+    end)
+
+    local state = profileCaptureStates[requestId]
+    if not state then
+        return
+    end
+
+    state.reported = true
+    finalizeProfileCapture(requestId, false)
+
+    if not captureOk then
+        TriggerServerEvent('qb-management:server:profileCaptureData', requestId, nil, nil, ('Capture runtime error: %s'):format(tostring(captureErr)))
+        return
+    end
+
     if ok then
         TriggerServerEvent('qb-management:server:profileCaptureData', requestId, payload, providerOrErr, nil)
     else
@@ -1390,18 +1481,7 @@ RegisterNetEvent('qb-management:client:prepareProfileCapture', function(data)
 end)
 
 RegisterNetEvent('qb-management:client:finishProfileCapture', function(requestId)
-    requestId = tostring(requestId or '')
-    local cam = profileCaptureCams[requestId]
-    if cam then
-        DestroyCam(cam, false)
-        profileCaptureCams[requestId] = nil
-    end
-    RenderScriptCams(false, true, 200, true, true)
-    ClearFocus()
-    SendNUIMessage({
-        action = 'captureVisibility',
-        payload = { show = true }
-    })
+    finalizeProfileCapture(requestId, false)
 end)
 
 RegisterNetEvent('qb-management:client:profileCaptureResult', function(data)
@@ -1413,11 +1493,9 @@ end)
 
 AddEventHandler('onResourceStop', function(name)
     if name ~= GetCurrentResourceName() then return end
-    for key, cam in pairs(profileCaptureCams) do
-        if cam then
-            DestroyCam(cam, false)
-        end
-        profileCaptureCams[key] = nil
+    cancelAllProfileCaptures('Resource stopped')
+    for key in pairs(profileCaptureCams) do
+        finalizeProfileCapture(key, false)
     end
     RenderScriptCams(false, true, 150, true, true)
     ClearFocus()
