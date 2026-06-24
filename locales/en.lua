@@ -45,6 +45,7 @@ Locales.en = {
         ['nav.webhooks'] = 'Webhooks',
         ['nav.territories'] = 'Gang Territories',
         ['nav.rackets'] = 'Gang Rackets',
+        ['nav.workshop'] = 'Hidden Workshop',
         ['nav.contracts'] = 'Gang Contracts',
         ['nav.admin'] = 'Admin Panel',
         ['button.close'] = 'Close',

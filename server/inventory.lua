@@ -208,6 +208,99 @@ local function moveViaQs(orgType, orgName, actorSource, item, amount, metadata, 
     return true
 end
 
+local function adjustStashViaOx(orgType, orgName, item, amount, metadata)
+    local stash = ensureOxStash(orgType, orgName)
+    if amount > 0 then
+        local added = invCall('ox_inventory', 'AddItem', stash, item, amount, metadata)
+        if added ~= true then
+            return false, 'Stash add failed'
+        end
+        return true
+    end
+
+    local removed = invCall('ox_inventory', 'RemoveItem', stash, item, math.abs(amount), metadata)
+    if removed ~= true then
+        return false, 'Insufficient item amount'
+    end
+    return true
+end
+
+local function adjustStashViaQb(orgType, orgName, item, amount, metadata)
+    local stash = stashId(orgType, orgName)
+    local reason = GetCurrentResourceName()
+    if amount > 0 then
+        local added = invCall('qb-inventory', 'AddToStash', stash, item, amount, false, metadata or {}, reason)
+        if added ~= true then
+            return false, 'Stash add failed'
+        end
+        return true
+    end
+
+    local removed = invCall('qb-inventory', 'RemoveFromStash', stash, item, math.abs(amount), false, reason)
+    if removed ~= true then
+        return false, 'Insufficient item amount'
+    end
+    return true
+end
+
+local function adjustStashViaQbFamily(resourceName, orgType, orgName, item, amount, metadata)
+    local stash = stashId(orgType, orgName)
+    local reason = GetCurrentResourceName()
+    if amount > 0 then
+        local added = invCall(resourceName, 'AddToStash', stash, item, amount, false, metadata or {}, reason)
+        if added ~= true then
+            return false, 'Stash add failed'
+        end
+        return true
+    end
+
+    local removed = invCall(resourceName, 'RemoveFromStash', stash, item, math.abs(amount), false, reason)
+    if removed ~= true then
+        return false, 'Insufficient item amount'
+    end
+    return true
+end
+
+local function adjustStashViaQs(orgType, orgName, item, amount, metadata)
+    local stash = stashId(orgType, orgName)
+    if amount > 0 then
+        local added = invCall('qs-inventory', 'AddItemToStash', stash, item, amount, metadata or {})
+        if added ~= true then
+            return false, 'Stash add failed'
+        end
+        return true
+    end
+
+    local removed = invCall('qs-inventory', 'RemoveItemFromStash', stash, item, math.abs(amount))
+    if removed ~= true then
+        return false, 'Insufficient item amount'
+    end
+    return true
+end
+
+local function adjustStashDirect(orgType, orgName, item, amount, metadata)
+    local backend = InventoryModule.GetIntegration()
+    if backend == 'ox_inventory' then
+        return adjustStashViaOx(orgType, orgName, item, amount, metadata)
+    end
+    if backend == 'qb-inventory' then
+        return adjustStashViaQb(orgType, orgName, item, amount, metadata)
+    end
+    if backend == 'ps-inventory' then
+        return adjustStashViaQbFamily('ps-inventory', orgType, orgName, item, amount, metadata)
+    end
+    if backend == 'lj-inventory' then
+        return adjustStashViaQbFamily('lj-inventory', orgType, orgName, item, amount, metadata)
+    end
+    if backend == 'qs-inventory' then
+        return adjustStashViaQs(orgType, orgName, item, amount, metadata)
+    end
+    if backend ~= 'none' and backend ~= 'auto' then
+        invWarnOnce(backend, ('unknown backend "%s", using db fallback'):format(backend))
+    end
+    return false, nil
+end
+
 function InventoryModule.GetItems(orgType, orgName)
     local backend = InventoryModule.GetIntegration()
     if backend == 'ox_inventory' then
@@ -317,6 +410,78 @@ function InventoryModule.ModifyItem(orgType, orgName, itemName, amountDelta, act
         actor = actor
     })
     return true
+end
+
+function InventoryModule.AdjustOrganizationItem(orgType, orgName, itemName, amountDelta, actor, actionLabel, metadata)
+    local item = invCleanText(itemName, 80)
+    local delta = tonumber(amountDelta) or 0
+    if item == '' or delta == 0 then
+        return false, 'Invalid item or amount'
+    end
+
+    local backend = InventoryModule.GetIntegration()
+    local integrationOK, integrationErr = adjustStashDirect(orgType, orgName, item, delta, metadata)
+
+    if backend ~= 'none' and backend ~= 'auto' then
+        if integrationOK ~= true and integrationErr then
+            return false, integrationErr
+        end
+        if integrationOK ~= true then
+            invWarnOnce(backend .. ':direct_fallback', ('backend "%s" direct stash action unsupported, using db fallback'):format(backend))
+        end
+    end
+
+    MySQL.insert.await([[INSERT INTO bossmenu_org_inventory (org_type, org_name, item_name, amount, metadata)
+        VALUES (?, ?, ?, 0, ?)
+        ON DUPLICATE KEY UPDATE item_name = VALUES(item_name)]], {
+        orgType, orgName, item, json.encode(metadata or {})
+    })
+
+    local affected = 0
+    if delta > 0 then
+        affected = MySQL.update.await([[UPDATE bossmenu_org_inventory
+            SET amount = amount + ?, metadata = COALESCE(?, metadata), updated_at = NOW()
+            WHERE org_type = ? AND org_name = ? AND item_name = ?]], {
+            delta, metadata and json.encode(metadata) or nil, orgType, orgName, item
+        })
+    else
+        affected = MySQL.update.await([[UPDATE bossmenu_org_inventory
+            SET amount = amount + ?, metadata = COALESCE(?, metadata), updated_at = NOW()
+            WHERE org_type = ? AND org_name = ? AND item_name = ? AND amount >= ?]], {
+            delta, metadata and json.encode(metadata) or nil, orgType, orgName, item, math.abs(delta)
+        })
+    end
+
+    if (affected or 0) < 1 then
+        return false, 'Insufficient item amount'
+    end
+
+    MySQL.insert.await([[INSERT INTO bossmenu_org_inventory_logs (org_type, org_name, action, item_name, amount, actor_identifier, metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?)]], {
+        orgType, orgName, invCleanText(actionLabel, 24), item, math.abs(delta), actor, metadata and json.encode(metadata) or nil
+    })
+    invAudit(orgType, orgName, 'inventory_' .. invCleanText(actionLabel, 24), actor, nil, {
+        item = item,
+        delta = delta,
+        backend = backend
+    })
+    TriggerEvent('qb-management:server:hook', 'inventory_changed', {
+        orgType = orgType,
+        orgName = orgName,
+        action = actionLabel,
+        item = item,
+        delta = delta,
+        actor = actor
+    })
+    return true
+end
+
+function InventoryModule.AddOrganizationItem(orgType, orgName, itemName, amount, actor, actionLabel, metadata)
+    return InventoryModule.AdjustOrganizationItem(orgType, orgName, itemName, math.abs(tonumber(amount) or 0), actor, actionLabel, metadata)
+end
+
+function InventoryModule.RemoveOrganizationItem(orgType, orgName, itemName, amount, actor, actionLabel, metadata)
+    return InventoryModule.AdjustOrganizationItem(orgType, orgName, itemName, -math.abs(tonumber(amount) or 0), actor, actionLabel, metadata)
 end
 
 function InventoryModule.GetLogs(orgType, orgName, limit)

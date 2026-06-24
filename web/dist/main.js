@@ -67,6 +67,7 @@ const VIEWS = [
   { id: 'webhooks', labelKey: 'nav.webhooks', label: 'Webhooks' },
   { id: 'territories', labelKey: 'nav.territories', label: 'Gang Territories', gangOnly: true },
   { id: 'rackets', labelKey: 'nav.rackets', label: 'Gang Rackets', gangOnly: true },
+  { id: 'workshop', labelKey: 'nav.workshop', label: 'Hidden Workshop', gangOnly: true },
   { id: 'contracts', labelKey: 'nav.contracts', label: 'Gang Contracts', gangOnly: true },
   { id: 'admin', labelKey: 'nav.admin', label: 'Admin Panel' }
 ];
@@ -596,6 +597,7 @@ function allowedView(v) {
   if (v.id === 'webhooks' && (state.modules.Webhooks !== true || state.permissions.manage_webhooks !== true)) return false;
   if (v.id === 'territories' && state.modules.GangTerritories !== true) return false;
   if (v.id === 'rackets' && state.modules.GangRackets !== true) return false;
+  if (v.id === 'workshop' && state.modules.HiddenWorkshop !== true) return false;
   if (v.id === 'contracts' && state.modules.GangContracts !== true) return false;
   if (v.id === 'admin' && state.modules.AdminPanel !== true) return false;
   return true;
@@ -1748,6 +1750,9 @@ function renderAnalytics() {
             <span class="pill">Racket Stored: ${formatMoney(gang.racketIncome || 0)}</span>
             <span class="pill">Graffiti: ${Number(gang.graffitiCount || 0)}</span>
             <span class="pill">Contracts Done: ${Number(gang.contractCompletions || 0)}</span>
+            ${gang.hiddenWorkshop ? `<span class="pill">Workshop Lv: ${Number(gang.hiddenWorkshop.level || 1)}</span>` : ''}
+            ${gang.hiddenWorkshop ? `<span class="pill">Workshop Rep: ${Number(gang.hiddenWorkshop.reputation || 0)}</span>` : ''}
+            ${gang.hiddenWorkshop ? `<span class="pill">Workshop Heat: ${Number(gang.hiddenWorkshop.heat || 0)}</span>` : ''}
           </div>` : ''}
       </article>
 
@@ -2091,6 +2096,182 @@ function renderRackets() {
       await ensureViewData('rackets');
       renderCurrentView();
       showToast('Income claimed');
+    });
+  });
+}
+
+function renderWorkshop() {
+  const el = viewEl('workshop');
+  const data = state.cache.workshop || {};
+  const profile = data.profile || {};
+  const contracts = Array.isArray(data.contracts) ? data.contracts : [];
+  const contractTypes = Array.isArray(data.contractTypes) ? data.contractTypes : [];
+  const partsCatalog = Array.isArray(data.partsCatalog) ? data.partsCatalog : [];
+  const vehicleClasses = [...new Set(contractTypes.flatMap((entry) => Array.isArray(entry.classes) ? entry.classes : []))];
+  const payoutMode = String(data.payoutMode || 'dirty_item');
+
+  el.innerHTML = `
+    <div class="grid-2">
+      <article class="card">
+        <h3>Hidden Workshop</h3>
+        <div class="row">
+          <span class="pill">Level ${Number(profile.level || 1)}</span>
+          <span class="pill">Reputation ${Number(profile.reputation || 0)}</span>
+          <span class="pill">Heat ${Number(profile.heat || 0)}</span>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <span class="pill">Jobs Done ${Number(profile.jobs_completed || 0)}</span>
+          <span class="pill">Failed ${Number(profile.jobs_failed || 0)}</span>
+          <span class="pill">Early Cashouts ${Number(profile.early_cashouts || 0)}</span>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <span class="pill">Cars Stripped ${Number(profile.cars_stripped || 0)}</span>
+          <span class="pill">Parts Yield ${Number(profile.total_parts_earned || 0)}</span>
+          <span class="pill">Cash Generated ${formatMoney(profile.total_cash_earned || 0)}</span>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <select id="workshop-contract-type">
+            ${contractTypes.map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.label || entry.id)}</option>`).join('')}
+          </select>
+          <select id="workshop-vehicle-class">
+            <option value="">Auto class</option>
+            ${vehicleClasses.map((entry) => `<option value="${escapeHtml(entry)}">${escapeHtml(entry)}</option>`).join('')}
+          </select>
+          <button id="workshop-create" class="btn small">Post Job</button>
+        </div>
+        <p style="margin-top:10px; opacity:0.8;">
+          Early cashout keeps stripped parts and pays through ${payoutMode === 'account' ? 'the gang account' : 'dirty cash in stash'}.
+        </p>
+        <div class="row">
+          <span class="pill">Cash Bonus ${Number(profile.benefits?.cashBonusPercent || 0)}%</span>
+          <span class="pill">Rep Bonus ${Number(profile.benefits?.repBonusPercent || 0)}%</span>
+          <span class="pill">Extra Parts ${Number(profile.benefits?.extraPartChancePercent || 0)}%</span>
+        </div>
+      </article>
+      <article class="card">
+        <h3>Parts Catalog</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Part</th><th>Item</th><th>Guide Value</th></tr></thead>
+            <tbody>
+              ${partsCatalog.map((part) => `<tr>
+                <td>${escapeHtml(part.label || part.key || '')}</td>
+                <td>${escapeHtml(part.item || '')}</td>
+                <td>${formatMoney(part.unitValue || 0)}</td>
+              </tr>`).join('') || '<tr><td colspan="3">No parts configured.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+    <article class="card" style="margin-top:12px;">
+      <h3>Workshop Jobs</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Type</th><th>Vehicle</th><th>Status</th><th>Progress</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${contracts.map((row) => {
+              const parts = Array.isArray(row.payload?.parts) ? row.payload.parts : [];
+              const buttons = [];
+              if (row.status === 'available') {
+                buttons.push(`<button class="btn small workshop-accept" data-id="${row.id}">Accept</button>`);
+              }
+              if (row.status === 'active') {
+                for (const part of parts) {
+                  const stripped = Number(part.stripped || 0);
+                  const required = Number(part.required || 0);
+                  if (stripped < required) {
+                    buttons.push(`<button class="btn small ghost workshop-strip" data-id="${row.id}" data-part="${escapeHtml(part.key || '')}">Strip ${escapeHtml(part.label || part.key || '')}</button>`);
+                  }
+                }
+                buttons.push(`<button class="btn small workshop-cashout" data-id="${row.id}">Early Cashout</button>`);
+                buttons.push(`<button class="btn small danger workshop-fail" data-id="${row.id}">Abort</button>`);
+                if (Number(row.progress?.stripped || 0) >= Number(row.progress?.required || 0) && Number(row.progress?.required || 0) > 0) {
+                  buttons.push(`<button class="btn small workshop-complete" data-id="${row.id}">Finish</button>`);
+                }
+              }
+              const partText = parts.map((part) => `${part.label || part.key}: ${Number(part.stripped || 0)}/${Number(part.required || 0)}`).join(' | ');
+              return `<tr>
+                <td>${row.id}</td>
+                <td>${escapeHtml(row.payload?.contractLabel || row.contractType || '')}</td>
+                <td>${escapeHtml(row.payload?.targetModel || row.payload?.vehicleLabel || '')}</td>
+                <td>${escapeHtml(row.status || '')}</td>
+                <td>
+                  ${Number(row.progress?.stripped || 0)}/${Number(row.progress?.required || 0)}
+                  <div style="opacity:0.78; margin-top:4px;">${escapeHtml(partText || 'No parts')}</div>
+                </td>
+                <td>${buttons.join(' ') || '<span class="pill">Closed</span>'}</td>
+              </tr>`;
+            }).join('') || '<tr><td colspan="6">No workshop jobs.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  `;
+
+  document.getElementById('workshop-create')?.addEventListener('click', async () => {
+    const contractType = document.getElementById('workshop-contract-type').value;
+    const vehicleClass = document.getElementById('workshop-vehicle-class').value;
+    const res = await moduleAction('workshop_create', { contractType, vehicleClass });
+    if (!res.ok) return showToast(res.error || 'Workshop job creation failed', true);
+    state.cache.workshop = res.data || {};
+    renderCurrentView();
+    showToast('Workshop job posted');
+  });
+  el.querySelectorAll('.workshop-accept').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = Number(btn.dataset.id);
+      const res = await moduleAction('workshop_accept', { id });
+      if (!res.ok) return showToast(res.error || 'Accept failed', true);
+      state.cache.workshop = res.data || {};
+      renderCurrentView();
+      showToast('Workshop job accepted');
+    });
+  });
+  el.querySelectorAll('.workshop-strip').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = Number(btn.dataset.id);
+      const partKey = btn.dataset.part || '';
+      const res = await moduleAction('workshop_progress', { id, partKey, amount: 1 });
+      if (!res.ok) return showToast(res.error || 'Strip action failed', true);
+      state.cache.workshop = res.data || {};
+      await ensureViewData('overview');
+      renderCurrentView();
+      showToast('Part stripped into stash');
+    });
+  });
+  el.querySelectorAll('.workshop-cashout').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = Number(btn.dataset.id);
+      const res = await moduleAction('workshop_cashout', { id });
+      if (!res.ok) return showToast(res.error || 'Early cashout failed', true);
+      await ensureViewData('workshop');
+      await ensureViewData('overview');
+      renderCurrentView();
+      showToast('Workshop cashed out early');
+    });
+  });
+  el.querySelectorAll('.workshop-complete').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = Number(btn.dataset.id);
+      const res = await moduleAction('workshop_complete', { id });
+      if (!res.ok) return showToast(res.error || 'Workshop finish failed', true);
+      await ensureViewData('workshop');
+      await ensureViewData('overview');
+      renderCurrentView();
+      showToast('Workshop payout completed');
+    });
+  });
+  el.querySelectorAll('.workshop-fail').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = Number(btn.dataset.id);
+      const reason = (await askInput({ title: 'Abort Reason', value: '' })) || '';
+      const res = await moduleAction('workshop_fail', { id, reason });
+      if (!res.ok) return showToast(res.error || 'Abort failed', true);
+      state.cache.workshop = res.data || {};
+      await ensureViewData('overview');
+      renderCurrentView();
+      showToast('Workshop job aborted cleanly');
     });
   });
 }
@@ -2446,6 +2627,11 @@ async function ensureViewData(view) {
       if (res.ok) state.cache.rackets = res.data?.rackets || [];
       else showToast(res.error || 'Failed to load rackets', true);
     },
+    workshop: async () => {
+      const res = await moduleAction('workshop_overview', {});
+      if (res.ok) state.cache.workshop = res.data || {};
+      else showToast(res.error || 'Failed to load hidden workshop', true);
+    },
     contracts: async () => {
       const res = await moduleAction('contracts_list', {});
       if (res.ok) state.cache.contracts = res.data?.contracts || [];
@@ -2489,6 +2675,7 @@ function renderCurrentView() {
   else if (view === 'webhooks') renderWebhooks();
   else if (view === 'territories') renderTerritories();
   else if (view === 'rackets') renderRackets();
+  else if (view === 'workshop') renderWorkshop();
   else if (view === 'contracts') renderContracts();
   else if (view === 'admin') renderAdmin();
   localizeDom(viewEl(view));

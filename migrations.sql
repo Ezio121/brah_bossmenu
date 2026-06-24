@@ -369,3 +369,17 @@ CREATE TABLE IF NOT EXISTS bossmenu_gang_contracts (
   completed_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS bossmenu_hidden_workshop_profiles (
+  gang_name VARCHAR(64) NOT NULL PRIMARY KEY,
+  reputation INT NOT NULL DEFAULT 0,
+  level INT NOT NULL DEFAULT 1,
+  jobs_completed INT NOT NULL DEFAULT 0,
+  jobs_failed INT NOT NULL DEFAULT 0,
+  early_cashouts INT NOT NULL DEFAULT 0,
+  cars_stripped INT NOT NULL DEFAULT 0,
+  total_cash_earned INT NOT NULL DEFAULT 0,
+  total_parts_earned INT NOT NULL DEFAULT 0,
+  heat INT NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);

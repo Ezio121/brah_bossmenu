@@ -54,12 +54,12 @@ function ContractsModule.List(gangName, status)
     if cleanStatus ~= '' and cleanStatus ~= 'all' then
         rows = MySQL.query.await([[SELECT id, contract_type, status, reward_json, payload, accepted_by, accepted_at, completed_at, created_at
             FROM bossmenu_gang_contracts
-            WHERE gang_name = ? AND status = ?
+            WHERE gang_name = ? AND status = ? AND contract_type NOT LIKE 'hw\_%' ESCAPE '\'
             ORDER BY id DESC LIMIT 200]], { gangName, cleanStatus }) or {}
     else
         rows = MySQL.query.await([[SELECT id, contract_type, status, reward_json, payload, accepted_by, accepted_at, completed_at, created_at
             FROM bossmenu_gang_contracts
-            WHERE gang_name = ?
+            WHERE gang_name = ? AND contract_type NOT LIKE 'hw\_%' ESCAPE '\'
             ORDER BY id DESC LIMIT 200]], { gangName }) or {}
     end
     for i = 1, #rows do
@@ -118,6 +118,12 @@ function ContractsModule.Accept(gangName, contractId, actor)
     end
     local id = tonumber(contractId) or 0
     if id < 1 then return false, 'Invalid contract' end
+    local contractType = MySQL.scalar.await('SELECT contract_type FROM bossmenu_gang_contracts WHERE id = ? AND gang_name = ? LIMIT 1', {
+        id, gangName
+    })
+    if HiddenWorkshopModule and HiddenWorkshopModule.IsWorkshopContractType and HiddenWorkshopModule.IsWorkshopContractType(contractType) then
+        return false, 'Use the hidden workshop board for this contract'
+    end
     local activeCount = tonumber(MySQL.scalar.await([[SELECT COUNT(*) FROM bossmenu_gang_contracts
         WHERE gang_name = ? AND status = 'active']], { gangName }) or 0) or 0
     if activeCount >= contractMaxActive() then
@@ -153,6 +159,9 @@ function ContractsModule.Complete(gangName, contractId, actor, success)
     })
     if not row then
         return false, 'Contract not found'
+    end
+    if HiddenWorkshopModule and HiddenWorkshopModule.IsWorkshopContractType and HiddenWorkshopModule.IsWorkshopContractType(row.contract_type) then
+        return false, 'Use the hidden workshop flow for this contract'
     end
     local finalStatus = success == false and 'failed' or 'completed'
     local affected = MySQL.update.await([[UPDATE bossmenu_gang_contracts

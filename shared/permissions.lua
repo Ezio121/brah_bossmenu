@@ -46,6 +46,7 @@ GangPermissions = GangPermissions or {
     start_rackets = true,
     manage_graffiti = true,
     accept_contracts = true,
+    manage_hidden_workshop = true,
     create_announcements = true,
     view_activity_logs = true,
     view_cameras = true,

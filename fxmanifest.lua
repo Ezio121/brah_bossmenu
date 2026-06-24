@@ -44,6 +44,7 @@ server_scripts {
     'server/gangs.lua',
     'server/territories.lua',
     'server/contracts.lua',
+    'server/workshop.lua',
     'server/main.lua'
 }
 

@@ -45,6 +45,7 @@ Locales.de = {
         ['nav.webhooks'] = 'Webhooks',
         ['nav.territories'] = 'Gang-Territorien',
         ['nav.rackets'] = 'Gang-Rackets',
+        ['nav.workshop'] = 'Versteckte Werkstatt',
         ['nav.contracts'] = 'Gang-Auftraege',
         ['nav.admin'] = 'Admin-Panel',
         ['button.close'] = 'Schliessen',

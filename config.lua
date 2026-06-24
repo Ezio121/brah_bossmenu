@@ -154,6 +154,7 @@ Config.Modules = {
     GangRackets = true,
     GangGraffiti = true,
     GangContracts = true,
+    HiddenWorkshop = true,
     Webhooks = true,
     Analytics = true,
     Cameras = true,
@@ -328,6 +329,167 @@ Config.GangContractTemplates = {
     dealer_task = { money = 5200, notoriety = 2 },
     territory_disruption = { money = 6000, notoriety = 2 },
     item_sourcing = { money = 4800, notoriety = 1 }
+}
+
+Config.HiddenWorkshop = {
+    levelThresholds = { 0, 120, 320, 700, 1300 },
+    maxOpenContracts = 4,
+    maxActiveContracts = 1,
+    createCooldownSeconds = 90,
+    earlyCashoutPenaltyPercent = 35,
+    penaltyReductionPerLevel = 4,
+    cashBonusPercentPerLevel = 0.06,
+    repBonusPercentPerLevel = 0.05,
+    extraPartChancePerLevel = 0.08,
+    payoutMode = 'dirty_item', -- dirty_item | account
+    payoutItem = 'markedbills',
+    payoutItemCount = 1,
+    payoutMetadataKey = 'worth',
+    stockToStash = true,
+    stockMetadata = {
+        illegal = true,
+        source = 'hidden_workshop'
+    },
+    partCatalog = {
+        scrap_metal = { label = 'Scrap Metal', item = 'scrapmetal', unitValue = 80 },
+        body_panel = { label = 'Body Panel', item = 'bodypanel', unitValue = 275 },
+        wheel_pack = { label = 'Wheel Pack', item = 'wheelkit', unitValue = 420 },
+        electronics = { label = 'Vehicle Electronics', item = 'carelectronics', unitValue = 360 },
+        engine_block = { label = 'Engine Block', item = 'engineparts', unitValue = 550 },
+        turbo_unit = { label = 'Turbo Unit', item = 'turbo', unitValue = 900 },
+        interior_trim = { label = 'Interior Trim', item = 'interiorparts', unitValue = 230 },
+        transmission = { label = 'Transmission', item = 'transmissionparts', unitValue = 640 }
+    },
+    vehicleClasses = {
+        compact = {
+            label = 'Compact',
+            payout = 5200,
+            notoriety = 1,
+            reputation = 40,
+            heat = 1,
+            models = { 'Blista', 'Panto', 'Prairie' },
+            parts = {
+                scrap_metal = { min = 8, max = 12 },
+                body_panel = { min = 2, max = 4 },
+                wheel_pack = { min = 1, max = 2 },
+                electronics = { min = 1, max = 2 }
+            }
+        },
+        sedan = {
+            label = 'Sedan',
+            payout = 7200,
+            notoriety = 2,
+            reputation = 55,
+            heat = 2,
+            models = { 'Asea', 'Premier', 'Tailgater' },
+            parts = {
+                scrap_metal = { min = 10, max = 14 },
+                body_panel = { min = 3, max = 5 },
+                wheel_pack = { min = 2, max = 3 },
+                electronics = { min = 2, max = 3 },
+                engine_block = { min = 1, max = 1 }
+            }
+        },
+        suv = {
+            label = 'SUV',
+            payout = 8900,
+            notoriety = 2,
+            reputation = 70,
+            heat = 2,
+            models = { 'Baller', 'Radius', 'Rocoto' },
+            parts = {
+                scrap_metal = { min = 12, max = 18 },
+                body_panel = { min = 4, max = 6 },
+                wheel_pack = { min = 2, max = 4 },
+                electronics = { min = 2, max = 3 },
+                engine_block = { min = 1, max = 2 },
+                interior_trim = { min = 1, max = 2 }
+            }
+        },
+        muscle = {
+            label = 'Muscle',
+            payout = 9800,
+            notoriety = 3,
+            reputation = 80,
+            heat = 3,
+            models = { 'Dominator', 'Gauntlet', 'Sabre Turbo' },
+            parts = {
+                scrap_metal = { min = 12, max = 17 },
+                body_panel = { min = 4, max = 6 },
+                wheel_pack = { min = 2, max = 4 },
+                engine_block = { min = 1, max = 2 },
+                transmission = { min = 1, max = 1 },
+                interior_trim = { min = 1, max = 2 }
+            }
+        },
+        sport = {
+            label = 'Sport',
+            payout = 12200,
+            notoriety = 4,
+            reputation = 95,
+            heat = 4,
+            models = { 'Comet', 'Elegy', 'Jester' },
+            parts = {
+                scrap_metal = { min = 10, max = 16 },
+                body_panel = { min = 4, max = 6 },
+                wheel_pack = { min = 3, max = 4 },
+                electronics = { min = 3, max = 4 },
+                engine_block = { min = 1, max = 2 },
+                turbo_unit = { min = 1, max = 1 },
+                transmission = { min = 1, max = 1 }
+            }
+        },
+        bike = {
+            label = 'Bike',
+            payout = 6100,
+            notoriety = 2,
+            reputation = 50,
+            heat = 2,
+            models = { 'Bati 801', 'Daemon', 'Sanchez' },
+            parts = {
+                scrap_metal = { min = 6, max = 10 },
+                wheel_pack = { min = 1, max = 2 },
+                electronics = { min = 1, max = 1 },
+                engine_block = { min = 1, max = 1 }
+            }
+        }
+    },
+    contractTypes = {
+        steal_vehicle = {
+            label = 'Steal Vehicle',
+            description = 'Recover a hot vehicle and break it down for fast cash.',
+            vehicleClasses = { 'sedan', 'suv', 'muscle' },
+            bonusPayout = 0,
+            bonusReputation = 0,
+            bonusNotoriety = 1
+        },
+        strip_to_order = {
+            label = 'Strip To Order',
+            description = 'A buyer needs specific components preserved.',
+            vehicleClasses = { 'sport', 'muscle', 'suv' },
+            bonusPayout = 1800,
+            bonusReputation = 15,
+            bonusNotoriety = 1,
+            guaranteedParts = { 'turbo_unit', 'transmission' }
+        },
+        vin_wipe = {
+            label = 'VIN Wipe',
+            description = 'Bring in a cleaner target and harvest the traceable bits quietly.',
+            vehicleClasses = { 'compact', 'sedan', 'sport' },
+            bonusPayout = 900,
+            bonusReputation = 10,
+            bonusNotoriety = 0
+        },
+        boost_for_parts = {
+            label = 'Boost For Parts',
+            description = 'Take a short contract and flood the stash with usable parts.',
+            vehicleClasses = { 'compact', 'bike', 'sedan' },
+            bonusPayout = -500,
+            bonusReputation = 20,
+            bonusNotoriety = 0,
+            partMultiplier = 1.25
+        }
+    }
 }
 
 Config.GangSystems = {

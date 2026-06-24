@@ -96,6 +96,7 @@ Core highlights:
 * Session-based action security
 * Per-action rate limiting
 * Optional built-in gang backend
+* Hidden workshop jobs with stripping progress, early cashout, dirty-cash payouts, and gang reputation levels
 * Legacy resource replacement compatibility
 * Debug/dev commands for testing and migration
 

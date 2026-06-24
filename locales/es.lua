@@ -45,6 +45,7 @@ Locales.es = {
         ['nav.webhooks'] = 'Webhooks',
         ['nav.territories'] = 'Territorios de banda',
         ['nav.rackets'] = 'Negocios de banda',
+        ['nav.workshop'] = 'Taller oculto',
         ['nav.contracts'] = 'Contratos de banda',
         ['nav.admin'] = 'Panel de administracion',
         ['button.close'] = 'Cerrar',
